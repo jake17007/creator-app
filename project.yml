@@ -1,0 +1,66 @@
+# The Xcode project is generated from this file: run ./configure (which calls
+# `xcodegen generate`). CreatorApp.xcodeproj is gitignored.
+#
+# Everything that differs from one creator's copy to the next (app name, bundle
+# id, team, version) is a CREATOR_* setting from Generated/App.xcconfig, which
+# ./configure writes from creator/app.json. Nothing here needs editing to make
+# the app yours.
+name: CreatorApp
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Generated/App.xcconfig
+  Release: Generated/App.xcconfig
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    exactVersion: 2.55.6
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    exactVersion: 3.96.1
+targets:
+  CreatorApp:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - path: Generated/Creator.swift
+      - path: Generated/PrivacyPolicy.swift
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
+            CFBundleURLSchemes: [$(CREATOR_URL_SCHEME)]
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: PostHog
+        product: PostHog
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(CREATOR_BUNDLE_ID)
+        PRODUCT_NAME: $(CREATOR_PRODUCT_NAME)
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: $(CREATOR_APP_NAME)
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        CURRENT_PROJECT_VERSION: $(CREATOR_BUILD)
+        MARKETING_VERSION: $(CREATOR_VERSION)
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(CREATOR_TEAM_ID)

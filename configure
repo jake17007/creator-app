@@ -1,0 +1,3 @@
+#!/bin/sh
+# Builds this copy of the app from creator/. See tools/configure.py.
+exec python3 "$(dirname "$0")/tools/configure.py" "$@"

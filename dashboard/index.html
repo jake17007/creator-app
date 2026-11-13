@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__APP_NAME__ sessions</title>
+<style>
+  :root {
+    --bg: #f5f5f2; --panel: #ffffff; --text: #15171a; --muted: #6a6f74; --line: #e1e1dc;
+    --accent: #0b7f78; --accent-soft: #e2f0ee; --live: #c0392b; --hover: #f0f0ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101211; --panel: #191c1b; --text: #f1f2f0; --muted: #969c99; --line: #2b2f2e;
+      --accent: #3cc7bb; --accent-soft: #16302d; --live: #ff6b5e; --hover: #202423;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  .muted { color: var(--muted); }
+
+  header {
+    height: 56px; padding: 0 20px; display: flex; align-items: center; gap: 16px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; white-space: nowrap; }
+  header h1 span { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  header .spacer { flex: 1; }
+  header label { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  #updated { font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 650;
+    letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap;
+  }
+  .pill.live { color: var(--live); border-color: var(--live); }
+  .pill.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--live); }
+
+  #banner {
+    display: none; padding: 8px 20px; font-size: 13px; background: var(--accent-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  #banner.on { display: block; }
+
+  main { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 56px); }
+  body.has-banner main { height: calc(100vh - 56px - 37px); }
+
+  #list { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); }
+  #listEmpty { padding: 28px 20px; color: var(--muted); font-size: 14px; }
+  .card {
+    display: flex; gap: 12px; width: 100%; padding: 12px 16px; text-align: left; cursor: pointer;
+    background: none; border: 0; border-bottom: 1px solid var(--line); position: relative;
+    transition: background-color .6s;
+  }
+  .card:hover { background: var(--hover); }
+  .card.selected { background: var(--accent-soft); }
+  .card.fresh { background: var(--accent-soft); }
+  .thumb {
+    width: 46px; height: 100px; flex: none; border-radius: 7px; background: var(--hover);
+    border: 1px solid var(--line); object-fit: cover; display: block;
+  }
+  .info { min-width: 0; flex: 1; padding-top: 2px; }
+  .name-row { display: flex; align-items: center; gap: 8px; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .when, .stats, .tags { font-size: 13px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .unwatched { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; margin-left: auto; }
+
+  #stage { overflow-y: auto; padding: 24px 28px; }
+  #empty { max-width: 460px; margin: 12vh auto 0; color: var(--muted); }
+  #empty h2 { color: var(--text); font-size: 18px; margin: 0 0 8px; }
+  #player { display: flex; gap: 32px; align-items: flex-start; }
+  #player[hidden], #empty[hidden] { display: none; }
+
+  .phone {
+    position: relative; flex: none; height: min(calc(100vh - 130px), 780px); aspect-ratio: 402 / 874;
+    background: #000; border-radius: 26px; overflow: hidden; border: 1px solid var(--line);
+  }
+  #frame { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #frame:not([src]) { visibility: hidden; }
+  #touches { position: absolute; inset: 0; pointer-events: none; }
+  .tap {
+    position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+    background: rgba(255, 196, 0, .55); border: 2px solid rgba(255, 196, 0, .95);
+    animation: tap .7s ease-out forwards;
+  }
+  .swipe {
+    position: absolute; height: 4px; margin-top: -2px; border-radius: 2px; transform-origin: 0 50%;
+    background: rgba(255, 196, 0, .9); animation: fade .9s ease-out forwards;
+  }
+  @keyframes tap { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.7); opacity: 0; } }
+  @keyframes fade { from { opacity: 1; } to { opacity: 0; } }
+  #waiting {
+    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 5px 12px;
+    font-size: 12px; border-radius: 999px; background: rgba(0, 0, 0, .72); color: #fff; white-space: nowrap;
+  }
+  #waiting[hidden] { display: none; }
+
+  .side { flex: 1; min-width: 280px; max-width: 520px; }
+  .who { display: flex; align-items: center; gap: 10px; }
+  .who h2 { font-size: 22px; margin: 0; }
+  #meta { margin: 4px 0 18px; font-size: 14px; }
+  .controls { display: flex; align-items: center; gap: 12px; }
+  #play {
+    width: 84px; padding: 8px 0; border-radius: 9px; border: 0; cursor: pointer; font-weight: 600;
+    background: var(--accent); color: #fff;
+  }
+  @media (prefers-color-scheme: dark) { #play { color: #06211f; } }
+  #scrub { flex: 1; accent-color: var(--accent); }
+  #clock { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .options { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .options label { display: flex; align-items: center; gap: 6px; }
+  .options select { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 3px 6px; }
+  .link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent); text-decoration: none; font-size: 13px; }
+  .link:hover { text-decoration: underline; }
+  .link[hidden] { display: none; }
+
+  .side h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 26px 0 8px; font-weight: 650; }
+  #trail { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  #trail li {
+    display: flex; gap: 14px; padding: 8px 6px; border-bottom: 1px solid var(--line); cursor: pointer;
+    font-size: 14px;
+  }
+  #trail li:hover { background: var(--hover); }
+  #trail li.now { background: var(--accent-soft); }
+  #trail li.before { color: var(--muted); }
+  #trail .at { width: 44px; flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #trailEmpty { font-size: 14px; color: var(--muted); padding: 10px 6px; }
+  .note { font-size: 12px; color: var(--muted); margin-top: 22px; max-width: 460px; }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    #list { border-right: 0; border-bottom: 1px solid var(--line); max-height: 44vh; }
+    #player { flex-direction: column; align-items: center; }
+    .phone { height: auto; width: min(100%, 340px); }
+    .side { width: 100%; min-width: 0; }
+    #stage { padding: 16px; }
+    header { height: auto; min-height: 56px; flex-wrap: wrap; row-gap: 6px; padding: 8px 16px; }
+    header .spacer { display: none; }
+    header label span { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>__APP_NAME__ <span>Sessions</span></h1>
+  <span id="liveCount" class="pill">No one live</span>
+  <div class="spacer"></div>
+  <label title="When someone opens the app, start playing their session here"><input type="checkbox" id="autoplay" checked> <span>Play new sessions as they start</span></label>
+  <span id="updated"></span>
+</header>
+<div id="banner"></div>
+
+<main>
+  <aside id="list">
+    <div id="listEmpty">Loading sessions…</div>
+  </aside>
+
+  <section id="stage">
+    <div id="empty">
+      <h2>No session selected</h2>
+      <p>Sessions show up on the left within about half a minute of someone using the app. Pick one to watch it.</p>
+    </div>
+
+    <div id="player" hidden>
+      <div class="phone" id="phone">
+        <img id="frame" alt="Recorded screen">
+        <div id="touches"></div>
+        <div id="waiting" hidden>Waiting for more…</div>
+      </div>
+
+      <div class="side">
+        <div class="who">
+          <h2 id="who"></h2>
+          <span id="livePill" class="pill live" hidden>Live</span>
+        </div>
+        <p id="meta" class="muted"></p>
+
+        <div class="controls">
+          <button id="play">Play</button>
+          <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Position in the recording">
+          <span id="clock">0:00 / 0:00</span>
+        </div>
+        <div class="options">
+          <label>Speed
+            <select id="speed">
+              <option value="1">1×</option>
+              <option value="2">2×</option>
+              <option value="4">4×</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="skip" checked> Skip idle time</label>
+          <button id="toLive" class="link" hidden>Jump to live</button>
+          <a id="open" class="link" target="_blank" rel="noopener">Open in PostHog</a>
+        </div>
+
+        <h3>What they did</h3>
+        <ol id="trail"></ol>
+        <div id="trailEmpty" hidden>Nothing logged for this session yet.</div>
+
+        <p class="note">Messages, goals, names and anything typed are blacked out in the recording.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const PAGE_TITLE = document.title;   // the server fills in the app's name
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const POLL_MS = 10000;
+
+  // ---------- formatting (12-hour clock everywhere)
+  const clockTime = (ms) =>
+    new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  const offset = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+  const length = (s) => {
+    s = Math.round(s);
+    if (s >= 3600) return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+    if (s >= 60) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    return s + 's';
+  };
+  const whenLabel = (ms) => {
+    if (!ms) return '';
+    const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diff = Math.round((day(new Date()) - day(new Date(ms))) / 86400000);
+    const time = clockTime(ms);
+    if (diff === 0) return 'Today, ' + time;
+    if (diff === 1) return 'Yesterday, ' + time;
+    return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + time;
+  };
+  const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
+
+  // ---------- small persistent preferences (the page works without them)
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
+  };
+  const watched = new Set(store.get('jd.watched', []));
+  const markWatched = (id) => { watched.add(id); store.set('jd.watched', [...watched].slice(-400)); };
+
+  // ---------- state
+  let sessions = [];
+  let knownIds = null;          // ids seen on earlier refreshes (null until the first one)
+  const autoPlayed = new Set(); // live sessions already started automatically
+  let selectedId = null;
+  let detail = null;            // the selected recording: frames, touches, events
+  let loadingDetail = false;
+  let points = [];              // every moment something happened, for skipping idle time
+  let t0 = 0, tEnd = 0;         // first and last moment of the recording (ms)
+  let pos = 0;                  // playhead, ms after t0
+  let playing = false;
+  let shownFrame = -1;
+  let lastAbs = null;
+  let lastTick = 0;
+  let timer = null;
+  const cards = new Map();
+
+  const current = () => sessions.find((s) => s.id === selectedId) || null;
+  const frameUrl = (ts) => `/api/sessions/${selectedId}/frame/${ts}`;
+
+  function setBanner(text) {
+    $('banner').textContent = text || '';
+    $('banner').classList.toggle('on', !!text);
+    document.body.classList.toggle('has-banner', !!text);
+  }
+
+  // ---------- the session list
+  function renderList() {
+    const list = $('list');
+    $('listEmpty').hidden = sessions.length > 0;
+    if (!sessions.length) {
+      $('listEmpty').textContent =
+        'No sessions yet. They appear here within about half a minute of someone opening the app.';
+    }
+    const alive = new Set(sessions.map((s) => s.id));
+    for (const [id, el] of cards) if (!alive.has(id)) { el.remove(); cards.delete(id); }
+
+    sessions.forEach((s, index) => {
+      let el = cards.get(s.id);
+      if (!el) {
+        el = document.createElement('button');
+        el.className = 'card';
+        el.innerHTML =
+          '<img class="thumb" loading="lazy" alt="">' +
+          '<div class="info"><div class="name-row"><span class="name"></span><span class="pill live" hidden>Live</span><span class="unwatched" hidden></span></div>' +
+          '<div class="when"></div><div class="stats"></div><div class="tags"></div></div>';
+        el.addEventListener('click', () => select(s.id, { play: true }));
+        // No picture yet: hide the broken image and try again on the next refresh.
+        el.querySelector('.thumb').addEventListener('error', (e) => { e.target.style.visibility = 'hidden'; e.target.dataset.src = ''; });
+        el.querySelector('.thumb').addEventListener('load', (e) => { e.target.style.visibility = 'visible'; });
+        cards.set(s.id, el);
+        if (knownIds && !knownIds.has(s.id)) {
+          el.classList.add('fresh');
+          setTimeout(() => el.classList.remove('fresh'), 20000);
+        }
+      }
+      // A live session's picture refreshes once a minute; a finished one stays put.
+      const version = s.live ? 'l' + Math.floor((s.end || 0) / 60000) : 'e' + Math.floor((s.end || 0) / 1000);
+      const src = `/api/sessions/${s.id}/thumb?v=${version}`;
+      const img = el.querySelector('.thumb');
+      if (img.dataset.src !== src) { img.dataset.src = src; img.src = src; }
+
+      el.querySelector('.name').textContent = s.name;
+      el.querySelector('.pill').hidden = !s.live;
+      el.querySelector('.unwatched').hidden = watched.has(s.id) || s.id === selectedId;
+      el.querySelector('.when').textContent = whenLabel(s.start);
+      el.querySelector('.stats').textContent = length(s.duration) + ' · ' + plural(s.taps, 'tap');
+      const tags = [];
+      if (s.creator) tags.push('You (creator)');
+      if (s.build === 'debug') tags.push('Test build');
+      el.querySelector('.tags').textContent = tags.join(' · ');
+      el.classList.toggle('selected', s.id === selectedId);
+      if (list.children[index + 1] !== el) list.insertBefore(el, list.children[index + 1] || null);
+    });
+  }
+
+  function renderHeader() {
+    const live = sessions.filter((s) => s.live).length;
+    const pill = $('liveCount');
+    pill.textContent = live ? live + ' live now' : 'No one live';
+    pill.classList.toggle('live', live > 0);
+    document.title = (live ? `(${live} live) ` : '') + PAGE_TITLE;
+    $('updated').textContent = 'Updated ' + clockTime(Date.now());
+  }
+
+  async function refresh() {
+    try {
+      const response = await fetch('/api/sessions');
+      const data = await response.json();
+      if (!response.ok || data.error) throw new Error(data.error || 'The dashboard server returned an error.');
+      sessions = data.sessions || [];
+      setBanner(data.warning || '');
+      renderList();
+      renderHeader();
+      afterRefresh();
+      knownIds = new Set(sessions.map((s) => s.id));
+    } catch (error) {
+      setBanner(error.message && !/fetch/i.test(error.message)
+        ? error.message
+        : "Can't reach the dashboard server. Is it still running?");
+    }
+  }
+
+  function afterRefresh() {
+    const firstLoad = knownIds === null;
+    const selected = current();
+
+    // Start playing someone who just opened the app, unless a recording is mid-play.
+    const fresh = sessions.filter((s) => s.live && !autoPlayed.has(s.id));
+    sessions.forEach((s) => { if (s.live) autoPlayed.add(s.id); });
+    const busy = playing && selected && !(selected.live && atEnd());
+    if (fresh.length && $('autoplay').checked && !busy && fresh[0].id !== selectedId) {
+      select(fresh[0].id, { play: true });
+      return;
+    }
+    if (firstLoad && !selectedId && sessions.length) {
+      select(sessions[0].id, { play: false });
+      return;
+    }
+    if (selected) {
+      renderMeta();
+      const newest = detail && detail.id === selectedId
+        ? Math.max(detail.frames[detail.frames.length - 1] || 0, detail.touches.length ? detail.touches[detail.touches.length - 1].t : 0)
+        : 0;
+      if (!detail || detail.id !== selectedId || (selected.end || 0) > newest + 500) loadDetail();
+    }
+  }
+
+  // ---------- the player
+  function select(id, { play }) {
+    if (id === selectedId && detail) { if (play && !playing) setPlaying(true); return; }
+    selectedId = id;
+    detail = null;
+    pos = 0; shownFrame = -1; lastAbs = null;
+    setPlaying(false);
+    markWatched(id);
+    $('empty').hidden = true;
+    $('player').hidden = false;
+    $('frame').removeAttribute('src');
+    $('touches').textContent = '';
+    $('trail').textContent = '';
+    $('trailEmpty').hidden = true;
+    $('waiting').hidden = true;
+    renderMeta();
+    renderList();
+    loadDetail().then(() => { if (play && detail && detail.id === id) setPlaying(true); });
+  }
+
+  function renderMeta() {
+    const s = current();
+    if (!s) return;
+    $('who').textContent = s.name;
+    $('livePill').hidden = !s.live;
+    $('toLive').hidden = !s.live;
+    const bits = ['Started ' + whenLabel(s.start).replace(/^Today, /, ''), length(s.duration), plural(s.taps, 'tap')];
+    if (s.version) bits.push('v' + s.version);
+    if (s.os) bits.push(s.os);
+    if (s.build === 'debug') bits.push('test build');
+    $('meta').textContent = bits.join(' · ');
+    $('open').href = s.url;
+  }
+
+  async function loadDetail() {
+    if (loadingDetail || !selectedId) return;
+    const id = selectedId;
+    loadingDetail = true;
+    try {
+      const response = await fetch(`/api/sessions/${id}`);
+      const data = await response.json();
+      if (id !== selectedId) return;
+      if (!response.ok || data.error) { setBanner(data.error || 'Could not load that recording.'); return; }
+      if (data.warning) setBanner(data.warning);
+      const first = !detail || detail.id !== id;
+      detail = data;
+      bounds();
+      renderTrail();
+      if (data.width && data.height) $('phone').style.aspectRatio = data.width + ' / ' + data.height;
+      render(first);
+    } catch {
+      setBanner("Can't reach the dashboard server. Is it still running?");
+    } finally {
+      loadingDetail = false;
+    }
+  }
+
+  function bounds() {
+    const frames = detail.frames, touches = detail.touches;
+    const s = current();
+    t0 = frames.length ? frames[0] : (s && s.start) || 0;
+    const lastFrame = frames.length ? frames[frames.length - 1] : t0;
+    const lastTouch = touches.length ? touches[touches.length - 1].t : t0;
+    tEnd = Math.max(lastFrame, lastTouch) + 1500;   // hold the last screen for a moment
+    points = frames.concat(touches.map((t) => t.t)).sort((a, b) => a - b);
+  }
+
+  // Index of the last value <= target in a sorted array (-1 if none).
+  function lastAtOrBefore(sorted, target, read = (v) => v) {
+    let lo = 0, hi = sorted.length - 1, found = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (read(sorted[mid]) <= target) { found = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return found;
+  }
+
+  const atEnd = () => pos >= tEnd - t0 - 50;
+
+  function render(force) {
+    if (!detail) return;
+    const abs = t0 + pos;
+    const frames = detail.frames;
+
+    if (frames.length) {
+      const index = Math.max(0, lastAtOrBefore(frames, abs));
+      if (force || index !== shownFrame) {
+        shownFrame = index;
+        $('frame').src = frameUrl(frames[index]);
+        for (let i = index + 1; i <= Math.min(frames.length - 1, index + 6); i++) new Image().src = frameUrl(frames[i]);
+      }
+    }
+
+    // Show the taps and swipes that happened since the last drawn moment.
+    if (playing && lastAbs !== null && abs > lastAbs && abs - lastAbs < 4000) {
+      const from = lastAtOrBefore(detail.touches, lastAbs, (t) => t.t) + 1;
+      for (let i = from; i < detail.touches.length && detail.touches[i].t <= abs; i++) drawTouch(detail.touches[i]);
+    }
+    lastAbs = abs;
+
+    const total = Math.max(1, tEnd - t0);
+    if (document.activeElement !== $('scrub') || !scrubbing) $('scrub').value = Math.round((pos / total) * 1000);
+    $('clock').textContent = offset(pos) + ' / ' + offset(total);
+
+    const s = current();
+    $('waiting').hidden = !(playing && s && s.live && atEnd());
+
+    const nowIndex = lastAtOrBefore(detail.events, abs, (e) => e.t);
+    const items = $('trail').children;
+    for (let i = 0; i < items.length; i++) items[i].classList.toggle('now', i === nowIndex && detail.events[i].t >= t0);
+  }
+
+  function drawTouch(touch) {
+    const layer = $('touches');
+    const w = layer.clientWidth, h = layer.clientHeight;
+    const x = (touch.x / detail.width) * w, y = (touch.y / detail.height) * h;
+    const ex = (touch.ex / detail.width) * w, ey = (touch.ey / detail.height) * h;
+    const distance = Math.hypot(ex - x, ey - y);
+    if (distance > 14) {
+      const line = document.createElement('div');
+      line.className = 'swipe';
+      line.style.cssText = `left:${x}px;top:${y}px;width:${distance}px;transform:rotate(${Math.atan2(ey - y, ex - x)}rad)`;
+      layer.appendChild(line);
+      setTimeout(() => line.remove(), 1000);
+    }
+    const dot = document.createElement('div');
+    dot.className = 'tap';
+    dot.style.cssText = `left:${distance > 14 ? ex : x}px;top:${distance > 14 ? ey : y}px`;
+    layer.appendChild(dot);
+    setTimeout(() => dot.remove(), 800);
+  }
+
+  function renderTrail() {
+    const trail = $('trail');
+    trail.textContent = '';
+    $('trailEmpty').hidden = detail.events.length > 0;
+    detail.events.forEach((event) => {
+      const li = document.createElement('li');
+      // Usage is logged all session; the screen is only recorded while it's allowed.
+      const before = event.t < t0, after = event.t > tEnd;
+      if (before || after) {
+        li.className = 'before';
+        li.title = before ? 'Happened before screen recording was on' : 'Happened after the screen recording stopped';
+      }
+      const at = document.createElement('span');
+      at.className = 'at';
+      at.textContent = before || after ? '–' : offset(event.t - t0);
+      const what = document.createElement('span');
+      what.textContent = event.label;
+      li.append(at, what);
+      li.addEventListener('click', () => seek(Math.max(0, event.t - t0 - 600)));
+      trail.appendChild(li);
+    });
+  }
+
+  function seek(to) {
+    pos = Math.max(0, Math.min(to, tEnd - t0));
+    lastAbs = null;
+    render(true);
+  }
+
+  function setPlaying(on) {
+    if (on && detail && atEnd() && !(current() && current().live)) seek(0);   // replay from the start
+    playing = !!on && !!detail;
+    $('play').textContent = playing ? 'Pause' : 'Play';
+    clearTimeout(timer);
+    if (playing) { lastTick = performance.now(); lastAbs = t0 + pos; timer = setTimeout(tick, 40); }
+    else $('waiting').hidden = true;
+  }
+
+  // Driven by a timer, not animation frames, so it keeps going in a background tab.
+  function tick() {
+    if (!playing || !detail) return;
+    const now = performance.now();
+    // Real time passed since the last drawn moment (capped, so a tab that was
+    // asleep doesn't leap ahead; a slowed-down background tab still keeps pace).
+    const elapsed = Math.min(2000, now - lastTick);
+    lastTick = now;
+    let next = pos + elapsed * Number($('speed').value);
+    const total = tEnd - t0;
+
+    if ($('skip').checked) {
+      const abs = t0 + pos;
+      const upcoming = points[lastAtOrBefore(points, abs) + 1];
+      if (upcoming !== undefined && upcoming - abs > 3000) next = Math.max(next, upcoming - t0 - 400);
+    }
+    if (next >= total) {
+      pos = total;
+      render();
+      const s = current();
+      if (!(s && s.live)) { setPlaying(false); return; }   // finished; a live one waits for more
+    } else {
+      pos = next;
+      render();
+    }
+    timer = setTimeout(tick, 40);
+  }
+
+  // ---------- controls
+  let scrubbing = false;
+  $('play').addEventListener('click', () => setPlaying(!playing));
+  $('scrub').addEventListener('input', () => { scrubbing = true; seek((Number($('scrub').value) / 1000) * (tEnd - t0)); });
+  $('scrub').addEventListener('change', () => { scrubbing = false; });
+  $('toLive').addEventListener('click', () => { seek(tEnd - t0 - 4000); setPlaying(true); });
+  $('autoplay').checked = store.get('jd.autoplay', true);
+  $('autoplay').addEventListener('change', () => store.set('jd.autoplay', $('autoplay').checked));
+  document.addEventListener('keydown', (event) => {
+    if (!detail || /INPUT|SELECT|TEXTAREA|BUTTON|A/.test(event.target.tagName)) return;
+    if (event.key === ' ') { event.preventDefault(); setPlaying(!playing); }
+    if (event.key === 'ArrowRight') seek(pos + 5000);
+    if (event.key === 'ArrowLeft') seek(pos - 5000);
+  });
+
+  refresh();
+  setInterval(refresh, POLL_MS);
+})();
+</script>
+</body>
+</html>

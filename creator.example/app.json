@@ -1,0 +1,34 @@
+{
+  "app": {
+    "name": "Sam's Lab",
+    "bundleId": "com.example.samslab",
+    "urlScheme": "samslab",
+    "version": "1.0",
+    "build": 1
+  },
+  "creator": {
+    "name": "Sam",
+    "fullName": "Sam Example",
+    "handle": "@sam_example",
+    "pronouns": "they"
+  },
+  "agent": {
+    "name": "sam.0"
+  },
+  "legal": {
+    "entity": "Sam Example",
+    "contactEmail": "hello@example.com",
+    "policyUpdated": "January 1, 2027"
+  },
+  "apple": {
+    "teamId": ""
+  },
+  "backend": {
+    "namespace": "samslab",
+    "projectRef": "",
+    "publishableKey": ""
+  },
+  "analytics": {
+    "posthogToken": ""
+  }
+}

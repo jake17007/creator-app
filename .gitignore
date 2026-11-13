@@ -1,0 +1,22 @@
+# Your copy of the app: names, keys, persona, icon. Created by ./configure
+# from creator.example/. Private by default; delete this line if you keep your
+# copy in a private repository and want it tracked.
+/creator/
+
+# Written by ./configure from creator/
+/Generated/
+/supabase/
+/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+/App/Info.plist
+
+# Xcode (the project is generated from project.yml)
+*.xcodeproj
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+
+# Local-only notes and secrets (the one-time creator code lands here)
+.local/
+__pycache__/
